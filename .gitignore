@@ -1,0 +1,15 @@
+# Ignorar ejecutables
+*.exe
+*.o
+*.out
+*.app
+*.txt
+
+# Ignorar carpetas de compilación
+/bin/
+/obj/
+/build/
+
+arr
+prueba
+prueba1
