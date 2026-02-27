@@ -1,15 +1,26 @@
-# Ignorar ejecutables
+# ===== Ejecutables =====
 *.exe
-*.o
 *.out
 *.app
+a.out
+
+# ===== Objetos =====
+*.o
+*.obj
+
+# ===== Archivos temporales =====
 *.txt
 
-# Ignorar carpetas de compilación
+# ===== Carpetas de compilación =====
 /bin/
 /obj/
 /build/
 
+# ===== Ejecutables comunes sin extensión =====
+areaexe
+areaexeclear
+fact
+primer_programa
 arr
-prueba
 prueba1
+prueba
