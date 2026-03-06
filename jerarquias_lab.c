@@ -43,13 +43,44 @@ int main(){
     pid_T = fork();
     if (pid_T == 0){
         print_pid('T');
+
+        pid_V = fork();
+        if (pid_V == 0){
+            print_pid('V');
+            exit(0);
+        }
+
         exit(0);
     }
     
     pid_W = fork();
     if (pid_W == 0){
         print_pid('W');
+
+        pid_S = fork();
+        if (pid_S == 0){
+            print_pid('S');
+            exit(0);
+        }
+
+        pid_L = fork();
+        if (pid_L == 0){
+            print_pid('L');
+
+            pid_P = fork();
+            if (pid_P == 0){
+            print_pid('P');
+            exit(0);
+            }
+                
+         exit (0);
+        }
+
         exit(0);
     }
+
+    sleep(3);
+    print_pid('R');
+
 
 }
