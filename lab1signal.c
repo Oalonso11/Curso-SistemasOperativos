@@ -5,7 +5,7 @@
 
 // Handler para SIGINT (CTRL + C)
 void manejador(int sig) {
- printf("\nEl usuario presionó CTRL+C\n");
+ printf("\n PID: %dEl usuario presionó CTRL+C\n", getpid());
  printf("Pausando 3 segundos...\n");
  sleep(3);
     
@@ -21,7 +21,7 @@ int main() {
     signal(SIGINT, manejador);
     signal(SIGTSTP, salir); //Ctrl Z
     while (1) {
-        printf("ID: 183729\n");
+        printf("\nPID: %d \n",getpid());
         sleep(1);
     }
 
