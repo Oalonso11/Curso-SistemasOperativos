@@ -8,15 +8,14 @@ int buffer[1000];
 #define N_THREADS 1000
 
 void* funcion_hilo(void* arg){
-    for(int i=0;i<1000;i++){
+
         pthread_mutex_lock (&mutex);
         //Región crítica
-        acount_a -- ;
-        acount_b ++;
+        buffer[buffer_index] = current_i;
+        buffer_index ++;
+        current_i ++;
         //Acaba región
         pthread_mutex_unlock( &mutex ); 
-    }
-
 }
 
 int main(){
@@ -35,14 +34,18 @@ int main(){
     for( int i=0; i<N_THREADS; i++)
         pthread_join( thread_ids[i], NULL );
 
+
+    //Imprimimos donde buffer es 0
+    printf("Posiciones donde buffer es 0:\n");
+    for (int i=0; i < 1000; i++){
+        if (buffer[i] == 0){
+            printf("buffer[%d] = 0 \n",i);
+        }
+    }
+
     // Destroy the mutex.
     pthread_mutex_destroy( &mutex );
-    
-    if (buffer == 0){
-        printf("\nEl resultado final de a es: %d y el resulatdo final de b es: %d\n",acount_a,acount_b);
-
-    }
-    
+    return 0;
 
 }
 
