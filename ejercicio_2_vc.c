@@ -2,43 +2,77 @@
 #include <stdlib.h>
 #include <pthread.h>
 
-int counter;
+int counter = 1;
+int even_turn = 0; //0 impares ; 1 pares
 
 pthread_mutex_t mutex;
-pthread_cond_t even_turn;
+pthread_cond_t cond;
 
 void* impares(void* arg)
 {
-    
-    pthread_mutex_lock( &mutex );
+     while(1){
+        pthread_mutex_lock( &mutex );
+
+        while (even_turn != 0 && counter <= 100){
+        pthread_cond_wait(&cond, &mutex);
+     }
+
      
-    key_1 = 1;
-    printf("Cambié la llave k1 de valor a 1.\n");
+    
+     if (counter > 100){
+        pthread_cond_signal(&cond);
+        pthread_mutex_unlock(&mutex);
+        break;
+     }
+
+    
+   
+     printf("Hilo impares: %d\n",counter);
+     counter ++;
+     even_turn = 1;
+    
         
     // Notifica que hay elementos en el buffer
-    pthread_cond_signal( &condicion );
+    pthread_cond_signal( &cond);
     pthread_mutex_unlock( &mutex );
-    
+    }
 
     pthread_exit( NULL );
 }
 
 void* pares(void* arg)
 {
-    
-        pthread_mutex_lock( &mutex );
-        // ---------- Región crítica
-        while (key_1 =! 1) // Esperar hasta que haya información en el buffer
+        while(1){
+            pthread_mutex_lock( &mutex );
+            // ---------- Región crítica
+            while (even_turn != 1 && counter <= 100) // Esperar hasta que haya información en el buffer
         {
             // Libera el mutex y espera a que se cumpla la condición (que llegue la señal)
-            pthread_cond_wait( &condicion, &mutex );
+            pthread_cond_wait( &cond, &mutex );
         }
-        key_2 = 1;
-        printf("Cambié la variable key 2 a valor 1.\n");
+
         
 
-        pthread_mutex_unlock( &mutex );
+        if (counter > 100){
+            pthread_cond_signal(&cond);
+            pthread_mutex_unlock(&mutex);
+            break;
+        }
         
+        printf("Hilo pares: %d\n",counter);
+        counter++;
+
+        if (counter > 100){
+            pthread_cond_signal(&cond);
+            pthread_mutex_unlock(&mutex);
+            break;
+        }
+
+        even_turn = 0;
+
+        pthread_cond_signal(&cond);
+        pthread_mutex_unlock( &mutex );
+  }
     
 
     pthread_exit(NULL);
@@ -49,7 +83,7 @@ int main()
     pthread_t thread_1, thread_2;
     
     pthread_mutex_init( &mutex, 0 );
-    pthread_cond_init( &condicion, 0 );
+    pthread_cond_init( &cond, 0 );
     
     // Creamos los hilos
     pthread_create( &thread_1, NULL, impares, NULL );
@@ -58,10 +92,8 @@ int main()
     pthread_join( thread_1, NULL);
     pthread_join( thread_2, NULL);
 
-    printf("Llaves sincronizadas, cohete lanzado en 3... 2... 1... Cohete lanzado correctamente\n");
-
     pthread_mutex_destroy( &mutex );
-    pthread_cond_destroy( &condicion );
+    pthread_cond_destroy( &cond );
     
     return 0;
 }
