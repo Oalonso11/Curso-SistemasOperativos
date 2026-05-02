@@ -1,9 +1,6 @@
 #include <stdio.h>
-#include <signal.h>
 #include <unistd.h>
 #include <stdlib.h>
-#include <sys/types.h>
-#include <sys/wait.h>
 #include <pthread.h>
 #include <ctype.h>
 #include <string.h>
@@ -19,20 +16,20 @@ int contestadas[MAX_PALABRAS];
 int cambioActual[MAX_PALABRAS];
 int cantidadCambios[MAX_PALABRAS];
 
-int i = 0;
 int totalPalabras = 0;
+int finJuego = 0;
+
+pthread_mutex_t mutex;
 
 // Para quitar el salto de linea de fgets
 void quitarSalto(char texto[]){
     int j = 0;
 
-    while (texto[j] != '\0'){
-
-        if (texto[j] == '\n'){
+    while(texto[j] != '\0'){
+        if(texto[j] == '\n'){
             texto[j] = '\0';
             break;
         }
-
         j++;
     }
 }
@@ -45,7 +42,7 @@ void leerPalabras(){
 
     archivo = fopen("palabras.txt","r");
 
-    if (archivo == NULL){
+    if(archivo == NULL){
         printf("No se pudo abrir el archivo palabras.txt\n");
         exit(1);
     }
@@ -56,7 +53,6 @@ void leerPalabras(){
     while(fgets(linea, MAX_TAM, archivo) != NULL){
         quitarSalto(linea);
 
-        // Linea vacia significa que empieza otro grupo
         if(linea[0] == '\0'){
             if(cambio > 0){
                 cantidadCambios[totalPalabras] = cambio;
@@ -72,7 +68,6 @@ void leerPalabras(){
         }
     }
 
-    // Guardar el ultimo grupo si no termina con linea vacia
     if(cambio > 0){
         cantidadCambios[totalPalabras] = cambio;
         contestadas[totalPalabras] = 0;
@@ -92,8 +87,8 @@ void leerPistas(){
 
     archivo = fopen("pistas.txt", "r");
 
-    if (archivo == NULL){
-        printf("No se pudo abrir pistas.txt \n");
+    if(archivo == NULL){
+        printf("No se pudo abrir pistas.txt\n");
         exit(1);
     }
 
@@ -103,7 +98,6 @@ void leerPistas(){
     while(fgets(linea, MAX_TAM, archivo) != NULL && palabra < totalPalabras){
         quitarSalto(linea);
 
-        // Linea vacia significa que empieza otro grupo de pistas
         if(linea[0] == '\0'){
             palabra++;
             cambio = 0;
@@ -121,8 +115,8 @@ void leerPistas(){
 int todasContestadas(){
     int j;
 
-    for (j = 0; j < totalPalabras; j++){
-        if (contestadas[j] == 0){
+    for(j = 0; j < totalPalabras; j++){
+        if(contestadas[j] == 0){
             return 0;
         }
     }
@@ -130,38 +124,23 @@ int todasContestadas(){
     return 1;
 }
 
-// Avanza a la siguiente palabra que no haya sido contestada
-void siguientePalabra(){
-    int vueltas = 0;
+// Muestra todas las pistas actuales
+void mostrarPistas(){
+    int j;
 
-    do{
-        i = (i + 1) % totalPalabras;
-        vueltas++;
-    }
-    while(contestadas[i] == 1 && vueltas <= totalPalabras);
-}
+    printf("\n----- PISTAS ACTUALES -----\n");
 
-// Mostrar pistas
-void mostrar(){
-    printf("\nPalabra numero %d\n", i + 1);
-    printf("Pista: %s\n", pistas[i][cambioActual[i]]);
-    printf("Longitud: %d letras\n", (int)strlen(palabras[i][cambioActual[i]]));
-}
-
-// Cambia la palabra actual y despues muestra
-void Palabra(int sig){
-    if(todasContestadas() == 1){
-        return;
+    for(j = 0; j < totalPalabras; j++){
+        if(contestadas[j] == 0){
+            printf("%d. %s", j + 1, pistas[j][cambioActual[j]]);
+            printf("  (%d letras)\n", (int)strlen(palabras[j][cambioActual[j]]));
+        }
+        else{
+            printf("%d. Ya contestada\n", j + 1);
+        }
     }
 
-    if(contestadas[i] == 0){
-        cambioActual[i] = (cambioActual[i] + 1) % cantidadCambios[i];
-
-        printf("\nCambio de palabra por tiempo\n");
-        mostrar();
-    }
-
-    alarm(20);
+    printf("---------------------------\n");
 }
 
 // Compara sin distinguir mayusculas y minusculas
@@ -183,7 +162,40 @@ int comparar(char intento[], char correcta[]){
     return 1;
 }
 
+// Hilo que cambia palabras cada 20 segundos
+void* cambiarPalabras(void* arg){
+    int j;
+
+    while(1){
+        sleep(20);
+
+        pthread_mutex_lock(&mutex);
+
+        if(finJuego == 1){
+            pthread_mutex_unlock(&mutex);
+            break;
+        }
+
+        for(j = 0; j < totalPalabras; j++){
+            if(contestadas[j] == 0){
+                cambioActual[j] = (cambioActual[j] + 1) % cantidadCambios[j];
+            }
+        }
+
+        printf("\n\nLas palabras y pistas cambiaron\n");
+        mostrarPistas();
+        printf("\nEscribe numero y palabra: ");
+        fflush(stdout);
+
+        pthread_mutex_unlock(&mutex);
+    }
+
+    pthread_exit(NULL);
+}
+
 int main(){
+    pthread_t hiloCambios;
+
     leerPalabras();
     leerPistas();
 
@@ -192,22 +204,32 @@ int main(){
         return 0;
     }
 
-    signal(SIGALRM, Palabra);
+    pthread_mutex_init(&mutex, NULL);
 
-    mostrar();   // primera pista inmediata
-    alarm(25);
+    pthread_create(&hiloCambios, NULL, cambiarPalabras, NULL);
+
+    pthread_mutex_lock(&mutex);
+    mostrarPistas();
+    pthread_mutex_unlock(&mutex);
 
     int numero;
     char intento[MAX_TAM];
+    char entrada[200];
 
     while(1){
-        if(todasContestadas() == 1){
-            printf("\nGanaste, adivinaste todas las palabras\n");
-            break;
+        printf("\nEscribe numero y palabra: ");
+
+        if(fgets(entrada, 200, stdin) == NULL){
+            printf("Error leyendo entrada\n");
+            continue;
         }
 
-        printf("\nEscribe numero y palabra: ");
-        scanf("%d %s", &numero, intento);
+        if(sscanf(entrada, "%d %s", &numero, intento) != 2){
+            printf("Formato incorrecto. Escribe: numero palabra\n");
+            continue;
+        }
+
+        pthread_mutex_lock(&mutex);
 
         numero = numero - 1;
 
@@ -224,20 +246,25 @@ int main(){
 
                 if(todasContestadas() == 1){
                     printf("\nGanaste, adivinaste todas las palabras\n");
+                    finJuego = 1;
+                    pthread_mutex_unlock(&mutex);
                     break;
                 }
 
-                i = numero;
-                siguientePalabra();
-                mostrar();
+                mostrarPistas();
             }
             else{
                 printf("Incorrecto\n");
-                i = numero;
-                mostrar();
+                printf("La pista actual de esa palabra es: %s\n", pistas[numero][cambioActual[numero]]);
             }
         }
+
+        pthread_mutex_unlock(&mutex);
     }
+
+    pthread_join(hiloCambios, NULL);
+
+    pthread_mutex_destroy(&mutex);
 
     return 0;
 }
